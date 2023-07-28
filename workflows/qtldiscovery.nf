@@ -49,6 +49,9 @@ include { INPUT_CHECK } from '../subworkflows/local/input_check'
 include { FASTQC                      } from '../modules/nf-core/fastqc/main'
 include { MULTIQC                     } from '../modules/nf-core/multiqc/main'
 include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoftwareversions/main'
+include { BOWTIE2_BUILD               } from '../modules/nf-core/bowtie2/build/main'
+include { BOWTIE2_ALIGN               } from '../modules/nf-core/bowtie2/align/main'
+
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -85,6 +88,32 @@ workflow QTLDISCOVERY {
     CUSTOM_DUMPSOFTWAREVERSIONS (
         ch_versions.unique().collectFile(name: 'collated_versions.yml')
     )
+
+    //
+    // MODULE: BOWTIE2_BUILD
+    //
+    Channel
+      .fromPath(params.fasta, checkIfExists: true)
+      .map { it -> [[:], it] }
+      .set { fasta }
+
+    BOWTIE2_BUILD(
+      fasta
+    )
+
+    //
+    // MODULE: BOWTIE2 ALIGNER
+    //
+    reads = INPUT_CHECK.out.reads
+    index = BOWTIE2_BUILD.out.index
+
+    BOWTIE2_ALIGN(
+      reads,
+      index,
+      true,
+      false
+    )
+
 
     //
     // MODULE: MultiQC
