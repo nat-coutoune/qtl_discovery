@@ -46,12 +46,17 @@ include { INPUT_CHECK } from '../subworkflows/local/input_check'
 //
 // MODULE: Installed directly from nf-core/modules
 //
-include { FASTQC                      } from '../modules/nf-core/fastqc/main'
-include { MULTIQC                     } from '../modules/nf-core/multiqc/main'
-include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoftwareversions/main'
-include { BOWTIE2_BUILD               } from '../modules/nf-core/bowtie2/build/main'
-include { BOWTIE2_ALIGN               } from '../modules/nf-core/bowtie2/align/main'
-
+include { FASTQC                          } from '../modules/nf-core/fastqc/main'
+include { MULTIQC                         } from '../modules/nf-core/multiqc/main'
+include { CUSTOM_DUMPSOFTWAREVERSIONS     } from '../modules/nf-core/custom/dumpsoftwareversions/main'
+include { BOWTIE2_BUILD                   } from '../modules/nf-core/bowtie2/build/main'
+include { BOWTIE2_ALIGN                   } from '../modules/nf-core/bowtie2/align/main'
+include { SAMTOOLS_SORT                   } from '../modules/nf-core/samtools/sort/main'
+include { PICARD_MARKDUPLICATES           } from '../modules/nf-core/picard/markduplicates/main'                                               
+include { SAMTOOLS_FAIDX                  } from '../modules/nf-core/samtools/faidx/main'                                                         
+include { PICARD_CREATESEQUENCEDICTIONARY } from '../modules/nf-core/picard/createsequencedictionary/main'
+include { SAMTOOLS_INDEX                  } from '../modules/nf-core/samtools/index/main'                                                                            
+include { GATK4_HAPLOTYPECALLER           } from '../modules/nf-core/gatk4/haplotypecaller/main'                                                                                      
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -94,18 +99,20 @@ workflow QTLDISCOVERY {
     //
     Channel
       .fromPath(params.fasta, checkIfExists: true)
-      .map { it -> [[:], it] }
+      .map { it -> [[:], it] } //dicionario para dar formato para do bowtie2-build
       .set { fasta }
 
     BOWTIE2_BUILD(
       fasta
     )
+    ch_versions = ch_versions.mix(BOWTIE2_BUILD.out.versions.first())
 
     //
     // MODULE: BOWTIE2 ALIGNER
-    //
+    //     
     reads = INPUT_CHECK.out.reads
-    index = BOWTIE2_BUILD.out.index
+    index = BOWTIE2_BUILD.out.index.first()
+    sort_bam = true
 
     BOWTIE2_ALIGN(
       reads,
@@ -113,7 +120,56 @@ workflow QTLDISCOVERY {
       true,
       false
     )
+    ch_versions = ch_versions.mix(BOWTIE2_ALIGN.out.versions.first())
 
+    //
+    // MODULE: SAMTOOLS FASTA INDEX 
+    //
+    fasta = params.fasta
+    fai   = Channel.empty()
+
+    SAMTOOLS_FAIDX(
+    fasta,
+    fai
+    )
+    ch_versions = ch_versions.mix(SAMTOOLS_FAIDX.out.versions.first())
+/*
+    //
+    // MODULE: PICARD MARK DUPLICATES
+    //
+    bam   = BOWTIE2_ALIGN.out.aligned
+    fasta = params.fasta
+    fai   = params.fasta_fai
+
+    PICARD_MARKDUPLICATES(
+    bam,
+    fasta,
+    fai
+    )
+    ch_versions = ch_versions.mix(PICARD_MARKDUPLICATES.out.versions.first())
+*/
+    //
+    // MODULE: PICARD_CREATESEQUENCEDICTIONARY
+    //
+    Channel
+      .fromPath(params.fasta, checkIfExists: true)
+      .map { it -> [[:], it] } //dicionario para dar formato para do bowtie2-build
+      .set { fasta }
+
+    PICARD_CREATESEQUENCEDICTIONARY(
+    fasta
+    )
+    ch_versions = ch_versions.mix(PICARD_CREATESEQUENCEDICTIONARY.out.versions.first())
+
+    //
+    // MODULE: SAMTOOLS_INDEX
+    //
+    bam = BOWTIE2_ALIGN.out.aligned.first()
+   
+    SAMTOOLS_INDEX(
+    bam
+    )
+    ch_versions = ch_versions.mix(SAMTOOLS_INDEX.out.versions.first())
 
     //
     // MODULE: MultiQC
