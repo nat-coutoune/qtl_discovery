@@ -170,7 +170,26 @@ workflow QTLDISCOVERY {
     bam
     )
     ch_versions = ch_versions.mix(SAMTOOLS_INDEX.out.versions.first())
+/*
 
+    //
+    // MODULE: GATK4_HAPLOTYPECALLER
+    //
+    input = BOWTIE2_ALIGN.out.aligned
+    input_index = .bai
+    fasta = params.fasta.Channel
+    fai = SAMTOOLS_FAIDX.out.fai
+    dict = PICARD_CREATESEQUENCEDICTIONARY.out.dict
+    
+    GATK4_HAPLOTYPECALLER(
+    input,
+    input_index,
+    fasta,
+    fai,
+    dict
+    )
+    ch_versions = ch_versions.mix(GATK4_HAPLOTYPECALLER.out.versions.first())
+*/
     //
     // MODULE: MultiQC
     //
