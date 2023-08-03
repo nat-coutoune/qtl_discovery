@@ -112,25 +112,22 @@ workflow QTLDISCOVERY {
     //     
     reads = INPUT_CHECK.out.reads
     index = BOWTIE2_BUILD.out.index.first()
-    sort_bam = true
-
+    
     BOWTIE2_ALIGN(
       reads,
       index,
       true,
-      false
+      true
     )
     ch_versions = ch_versions.mix(BOWTIE2_ALIGN.out.versions.first())
 
     //
     // MODULE: SAMTOOLS FASTA INDEX 
     //
-    fasta = params.fasta
-    fai   = Channel.empty()
 
     SAMTOOLS_FAIDX(
-    fasta,
-    fai
+      fasta,
+      [[],[]]
     )
     ch_versions = ch_versions.mix(SAMTOOLS_FAIDX.out.versions.first())
 /*
@@ -138,14 +135,13 @@ workflow QTLDISCOVERY {
     // MODULE: PICARD MARK DUPLICATES
     //
     bam   = BOWTIE2_ALIGN.out.aligned
-    fasta = params.fasta
-    fai   = params.fasta_fai
+    fai   = SAMTOOLS_FAIDX.out.fai
 
     PICARD_MARKDUPLICATES(
     bam,
     fasta,
     fai
-    )
+     )
     ch_versions = ch_versions.mix(PICARD_MARKDUPLICATES.out.versions.first())
 */
     //
@@ -164,14 +160,14 @@ workflow QTLDISCOVERY {
     //
     // MODULE: SAMTOOLS_INDEX
     //
-    bam = BOWTIE2_ALIGN.out.aligned.first()
+    bam = BOWTIE2_ALIGN.out.aligned
    
     SAMTOOLS_INDEX(
     bam
     )
     ch_versions = ch_versions.mix(SAMTOOLS_INDEX.out.versions.first())
-/*
 
+/*
     //
     // MODULE: GATK4_HAPLOTYPECALLER
     //
