@@ -130,7 +130,7 @@ workflow QTLDISCOVERY {
       [[],[]]
     )
     ch_versions = ch_versions.mix(SAMTOOLS_FAIDX.out.versions.first())
-/*
+
     //
     // MODULE: PICARD MARK DUPLICATES
     //
@@ -139,11 +139,11 @@ workflow QTLDISCOVERY {
 
     PICARD_MARKDUPLICATES(
     bam,
-    fasta,
-    fai
+    fasta.first(),
+    fai.first()
      )
     ch_versions = ch_versions.mix(PICARD_MARKDUPLICATES.out.versions.first())
-*/
+
     //
     // MODULE: PICARD_CREATESEQUENCEDICTIONARY
     //
@@ -172,8 +172,7 @@ workflow QTLDISCOVERY {
     // MODULE: GATK4_HAPLOTYPECALLER
     //
     input = BOWTIE2_ALIGN.out.aligned
-    input_index = .bai
-    fasta = params.fasta.Channel
+    input_index = SAMTOOLS_INDEX.out.bai
     fai = SAMTOOLS_FAIDX.out.fai
     dict = PICARD_CREATESEQUENCEDICTIONARY.out.dict
     
