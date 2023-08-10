@@ -149,7 +149,7 @@ workflow QTLDISCOVERY {
     //
     Channel
       .fromPath(params.fasta, checkIfExists: true)
-      .map { it -> [[:], it] } //dicionario para dar formato para do bowtie2-build
+      .map { it -> [[id: 'genome'], it] } //dicionario para dar formato para do bowtie2-build
       .set { fasta }
 
     PICARD_CREATESEQUENCEDICTIONARY(
@@ -167,24 +167,29 @@ workflow QTLDISCOVERY {
     )
     ch_versions = ch_versions.mix(SAMTOOLS_INDEX.out.versions.first())
 
-/*
+
     //
     // MODULE: GATK4_HAPLOTYPECALLER
     //
-    input = BOWTIE2_ALIGN.out.aligned
-    input_index = SAMTOOLS_INDEX.out.bai
+    BOWTIE2_ALIGN.out.aligned
+      .mix(SAMTOOLS_INDEX.out.bai)
+      .groupTuple()
+      .map { meta, files -> [meta, files[0], files[1], [], []] }
+      .set { meta_inp_inpindex }
+
     fai = SAMTOOLS_FAIDX.out.fai
-    dict = PICARD_CREATESEQUENCEDICTIONARY.out.dict
-    
+    dict = PICARD_CREATESEQUENCEDICTIONARY.out.reference_dict
+
     GATK4_HAPLOTYPECALLER(
-    input,
-    input_index,
-    fasta,
-    fai,
-    dict
+    meta_inp_inpindex,
+    fasta.map { meta, fasta -> fasta }.first(),
+    fai.map { meta, fai -> fai }.first(),
+    dict.map { meta, dict -> dict }.first(),
+    [],
+    []
     )
     ch_versions = ch_versions.mix(GATK4_HAPLOTYPECALLER.out.versions.first())
-*/
+
     //
     // MODULE: MultiQC
     //
