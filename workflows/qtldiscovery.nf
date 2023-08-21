@@ -57,7 +57,7 @@ include { SAMTOOLS_FAIDX                  } from '../modules/nf-core/samtools/fa
 include { PICARD_CREATESEQUENCEDICTIONARY } from '../modules/nf-core/picard/createsequencedictionary/main'
 include { SAMTOOLS_INDEX                  } from '../modules/nf-core/samtools/index/main'                                                                            
 include { GATK4_HAPLOTYPECALLER           } from '../modules/nf-core/gatk4/haplotypecaller/main'                                                                                      
-
+include { GATK4_VARIANTSTOTABLE           } from '../modules/local/gatk4/variantstotable/main'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
@@ -138,9 +138,9 @@ workflow QTLDISCOVERY {
     fai   = SAMTOOLS_FAIDX.out.fai
 
     PICARD_MARKDUPLICATES(
-    bam,
-    fasta.first(),
-    fai.first()
+      bam,
+      fasta.first(),
+      fai.first()
      )
     ch_versions = ch_versions.mix(PICARD_MARKDUPLICATES.out.versions.first())
 
@@ -153,7 +153,7 @@ workflow QTLDISCOVERY {
       .set { fasta }
 
     PICARD_CREATESEQUENCEDICTIONARY(
-    fasta
+      fasta
     )
     ch_versions = ch_versions.mix(PICARD_CREATESEQUENCEDICTIONARY.out.versions.first())
 
@@ -163,7 +163,7 @@ workflow QTLDISCOVERY {
     bam = BOWTIE2_ALIGN.out.aligned
    
     SAMTOOLS_INDEX(
-    bam
+      bam
     )
     ch_versions = ch_versions.mix(SAMTOOLS_INDEX.out.versions.first())
 
@@ -181,14 +181,33 @@ workflow QTLDISCOVERY {
     dict = PICARD_CREATESEQUENCEDICTIONARY.out.reference_dict
 
     GATK4_HAPLOTYPECALLER(
-    meta_inp_inpindex,
-    fasta.map { meta, fasta -> fasta }.first(),
-    fai.map { meta, fai -> fai }.first(),
-    dict.map { meta, dict -> dict }.first(),
-    [],
-    []
+      meta_inp_inpindex,
+      fasta.map { meta, fasta -> fasta }.first(),
+      fai.map { meta, fai -> fai }.first(),
+      dict.map { meta, dict -> dict }.first(),
+      [],
+      []
     )
     ch_versions = ch_versions.mix(GATK4_HAPLOTYPECALLER.out.versions.first())
+ 
+    //
+    // MODULE: GATK4_VARIANTSTOTABLE
+    //
+    GATK4_HAPLOTYPECALLER.out.vcf
+      .mix(GATK4_HAPLOTYPECALLER.out.tbi)
+      .groupTuple()
+      .map { meta, files -> [meta, files[0], files[1], [], []] }
+      .set { meta_vcf_totable }
+
+
+    GATK4_VARIANTSTOTABLE(
+      meta_vcf_totable,
+      fasta.map { meta, fasta -> fasta }.first(),
+      fai.map { meta, fai -> fai }.first(),
+      dict.map { meta, dict -> dict }.first()
+    )
+    ch_versions = ch_versions.mix(GATK4_VARIANTSTOTABLE.out.versions.first())
+
 
     //
     // MODULE: MultiQC
