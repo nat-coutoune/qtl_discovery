@@ -109,10 +109,10 @@ workflow QTLDISCOVERY {
 
     //
     // MODULE: BOWTIE2 ALIGNER
-    //     
+    //
     reads = INPUT_CHECK.out.reads
     index = BOWTIE2_BUILD.out.index.first()
-    
+
     BOWTIE2_ALIGN(
       reads,
       index,
@@ -122,9 +122,8 @@ workflow QTLDISCOVERY {
     ch_versions = ch_versions.mix(BOWTIE2_ALIGN.out.versions.first())
 
     //
-    // MODULE: SAMTOOLS FASTA INDEX 
+    // MODULE: SAMTOOLS FASTA INDEX
     //
-
     SAMTOOLS_FAIDX(
       fasta,
       [[],[]]
@@ -161,7 +160,7 @@ workflow QTLDISCOVERY {
     // MODULE: SAMTOOLS_INDEX
     //
     bam = BOWTIE2_ALIGN.out.aligned
-   
+
     SAMTOOLS_INDEX(
       bam
     )
@@ -189,14 +188,14 @@ workflow QTLDISCOVERY {
       []
     )
     ch_versions = ch_versions.mix(GATK4_HAPLOTYPECALLER.out.versions.first())
- 
+
     //
     // MODULE: GATK4_VARIANTSTOTABLE
     //
     GATK4_HAPLOTYPECALLER.out.vcf
       .mix(GATK4_HAPLOTYPECALLER.out.tbi)
       .groupTuple()
-      .map { meta, files -> [meta, files[0], files[1], [], []] }
+      .map { meta, files -> [meta, files[0], files[1]] }
       .set { meta_vcf_totable }
 
 
