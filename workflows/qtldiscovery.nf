@@ -49,6 +49,8 @@ include { INPUT_CHECK } from '../subworkflows/local/input_check'
 include { FASTQC                          } from '../modules/nf-core/fastqc/main'
 include { MULTIQC                         } from '../modules/nf-core/multiqc/main'
 include { CUSTOM_DUMPSOFTWAREVERSIONS     } from '../modules/nf-core/custom/dumpsoftwareversions/main'
+include { TRIMMOMATIC                     } from '../modules/nf-core/trimmomatic/main'
+include { PEAR                            } from '../modules/nf-core/pear/main' 
 include { BOWTIE2_BUILD                   } from '../modules/nf-core/bowtie2/build/main'
 include { BOWTIE2_ALIGN                   } from '../modules/nf-core/bowtie2/align/main'
 include { SAMTOOLS_SORT                   } from '../modules/nf-core/samtools/sort/main'
@@ -93,6 +95,36 @@ workflow QTLDISCOVERY {
     CUSTOM_DUMPSOFTWAREVERSIONS (
         ch_versions.unique().collectFile(name: 'collated_versions.yml')
     )
+
+    //
+    // MODULE: TRIMMOMATIC
+    //
+    TRIMMOMATIC(
+      INPUT_CHECK.out.reads
+    )
+    ch_versions = ch_versions.mix(TRIMMOMATIC.out.versions.first())
+    
+    //
+    // MODULE: PEAR
+    //
+    TRIMMOMATIC.out.trimmed_reads
+      .branch { meta, reads ->
+        pe: meta.single_end == false
+        se: true
+      }
+      .set { all_reads }
+  
+    PEAR(
+      all_reads.pe
+    )
+    
+    PEAR.out.assembled
+      .mix(all_reads.se)
+      .set { consensus_reads }
+    
+    //return
+
+    ch_versions = ch_versions.mix(PEAR.out.versions.first())
 
     //
     // MODULE: BOWTIE2_BUILD
