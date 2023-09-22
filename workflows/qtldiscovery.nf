@@ -54,11 +54,12 @@ include { PEAR                            } from '../modules/nf-core/pear/main'
 include { BOWTIE2_BUILD                   } from '../modules/nf-core/bowtie2/build/main'
 include { BOWTIE2_ALIGN                   } from '../modules/nf-core/bowtie2/align/main'
 include { SAMTOOLS_SORT                   } from '../modules/nf-core/samtools/sort/main'
-include { PICARD_MARKDUPLICATES           } from '../modules/nf-core/picard/markduplicates/main'                           
-include { SAMTOOLS_FAIDX                  } from '../modules/nf-core/samtools/faidx/main'         
+include { PICARD_MARKDUPLICATES           } from '../modules/nf-core/picard/markduplicates/main'
+include { SAMTOOLS_FAIDX                  } from '../modules/nf-core/samtools/faidx/main'
 include { PICARD_CREATESEQUENCEDICTIONARY } from '../modules/nf-core/picard/createsequencedictionary/main'
-include { SAMTOOLS_INDEX                  } from '../modules/nf-core/samtools/index/main'                                        
-include { GATK4_HAPLOTYPECALLER           } from '../modules/nf-core/gatk4/haplotypecaller/main'      
+include { SAMTOOLS_INDEX                  } from '../modules/nf-core/samtools/index/main'
+include { GATK4_HAPLOTYPECALLER           } from '../modules/nf-core/gatk4/haplotypecaller/main'
+include { GATK4_VARIANTSTOTABLE           } from '../modules/local/gatk4/variantstotable/main'
 include { GATK4_VARIANTFILTRATION         } from '../modules/nf-core/gatk4/variantfiltration/main'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -103,7 +104,7 @@ workflow QTLDISCOVERY {
       INPUT_CHECK.out.reads
     )
     ch_versions = ch_versions.mix(TRIMMOMATIC.out.versions.first())
-    
+
     //
     // MODULE: PEAR
     //
@@ -113,16 +114,16 @@ workflow QTLDISCOVERY {
         se: true
       }
       .set { all_reads }
-  
+
     PEAR(
       all_reads.pe
     )
-    
+
     PEAR.out.assembled
       .mix(all_reads.se)
       .map { meta, read -> [[id:meta.id, single_end:true], read] }
       .set { consensus_reads }
-    
+
     //return
 
     ch_versions = ch_versions.mix(PEAR.out.versions.first())
@@ -180,7 +181,7 @@ workflow QTLDISCOVERY {
     //
     Channel
       .fromPath(params.fasta, checkIfExists: true)
-      .map { it -> [[id: 'genome'], it] } 
+      .map { it -> [[id: 'genome'], it] }
       .set { fasta }
 
     PICARD_CREATESEQUENCEDICTIONARY(
@@ -224,69 +225,55 @@ workflow QTLDISCOVERY {
     //
     // MODULE: GATK4_VARIANTFILTRATION
     //
+
     GATK4_HAPLOTYPECALLER.out.vcf
        .mix(GATK4_HAPLOTYPECALLER.out.tbi)
        .groupTuple()
        .map { meta, files -> [meta, files[0], files[1]] }
-       .set { meta_vcf_filtration }
+       .set { grouped_meta_vcf }
 
      Channel
       .fromPath(params.fasta, checkIfExists: true)
-      .map { it -> [[:], it] } 
+      .map { it -> [[:], it] }
       .set { fasta }
 
      SAMTOOLS_FAIDX.out.fai
-       .map { it -> [[:], it] } 
        .set { fai }
 
     PICARD_CREATESEQUENCEDICTIONARY.out.reference_dict
-      .map { it -> [[:], it] } 
       .set { dict }
- 
-    GATK4_VARIANTFILTRATION ( 
-       meta_vcf_filtration,
+
+    GATK4_VARIANTFILTRATION (
+       grouped_meta_vcf,
        fasta,
        fai,
        dict
      )
      ch_versions = ch_versions.mix(GATK4_VARIANTFILTRATION.out.versions.first())
-/*     return
 
     //
-    // MODULE: GATK4_COMBINEGVCFS 
+    // MODULE: GATK4_COMBINEGVCFS
     //
-    GATK4_VARIANTFILTRATION.out.vcf
-         .mix(GATK4_VARIANTFILTRATION.out.tbi)
-         .groupTuple()
-         .map { meta, files -> [meta, files[0], files[1]] }
-         .set { meta_vcf_combine }
-
+/*
      GATK4_COMBINEGVCFS (
        meta_vcf_combine,
        fasta.map { meta, fasta -> fasta }.first(),
        fai.map { meta, fai -> fai }.first(),
        dict.map { meta, dict -> dict }.first()
      )
-     
+*/
     //
     // MODULE: GATK4_VARIANTSTOTABLE
     //
-    GATK4_HAPLOTYPECALLER.out.vcf
-      .mix(GATK4_HAPLOTYPECALLER.out.tbi)
-      .groupTuple()
-      .map { meta, files -> [meta, files[0], files[1]] }
-      .set { meta_vcf_totable }
-
 
     GATK4_VARIANTSTOTABLE(
-      meta_vcf_totable,
+      grouped_meta_vcf,
       fasta.map { meta, fasta -> fasta }.first(),
       fai.map { meta, fai -> fai }.first(),
       dict.map { meta, dict -> dict }.first()
     )
     ch_versions = ch_versions.mix(GATK4_VARIANTSTOTABLE.out.versions.first())
 
-*/
     //
     // MODULE: MultiQC
     //
