@@ -53,7 +53,7 @@ process  VCF_ANNOTATOR{
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-    vcf-annotator: \$(echo \$(vcf-annotator --version 2>&1) | sed 's/^.*(VCF_ANNOTATOR) v//; s/ .*\$//') 
+    vcf-annotator: \$(echo \$(vcf-annotator --version 2>&1) | sed 's/^.*(VCF_ANNOTATOR) v//; s/ .*\$//')
     END_VERSIONS
     """
 }

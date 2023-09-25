@@ -38,8 +38,8 @@ process GATK4_VARIANTFILTRATION {
         --output ${prefix}.vcf.gz \\
         --reference $fasta \\
         --tmp-dir . \\
-        --filterExpression "(QD < 2.0) || (FS > 60.0) || (MQ < 40.0) || (MQRankSum < -12.5) || (ReadPosRankSum < -8.0)" \\
-        --filterName "my_filter" \\
+        --filter-expression "(QD < 2.0) || (FS > 60.0) || (MQ < 40.0) || (MQRankSum < -12.5) || (ReadPosRankSum < -8.0)" \\
+        --filter-name "my_filter" \\
         $args
 
     cat <<-END_VERSIONS > versions.yml
