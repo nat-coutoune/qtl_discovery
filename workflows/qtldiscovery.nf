@@ -181,7 +181,7 @@ workflow QTLDISCOVERY {
     //
     Channel
       .fromPath(params.fasta, checkIfExists: true)
-      .map { it -> [[id: 'genome'], it] }
+      .map { it -> [[id: 'my_reference_genome'], it] }
       .set { fasta }
 
     PICARD_CREATESEQUENCEDICTIONARY(
