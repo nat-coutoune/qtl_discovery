@@ -61,6 +61,7 @@ include { SAMTOOLS_INDEX                  } from '../modules/nf-core/samtools/in
 include { GATK4_HAPLOTYPECALLER           } from '../modules/nf-core/gatk4/haplotypecaller/main'
 include { GATK4_VARIANTSTOTABLE           } from '../modules/local/gatk4/variantstotable/main'
 include { GATK4_VARIANTFILTRATION         } from '../modules/nf-core/gatk4/variantfiltration/main'
+include { GATK4_COMBINEGVCFS              } from '../modules/nf-core/gatk4/combinegvcfs/main.nf'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
@@ -158,7 +159,7 @@ workflow QTLDISCOVERY {
     // MODULE: SAMTOOLS FASTA INDEX
     //
     SAMTOOLS_FAIDX(
-      fasta.first(),
+      fasta,
       [[],[]]
     )
     ch_versions = ch_versions.mix(SAMTOOLS_FAIDX.out.versions.first())
@@ -171,8 +172,8 @@ workflow QTLDISCOVERY {
 
     PICARD_MARKDUPLICATES(
       bam,
-      fasta.first(),
-      fai.first()
+      fasta,
+      fai
      )
     ch_versions = ch_versions.mix(PICARD_MARKDUPLICATES.out.versions.first())
 
@@ -214,9 +215,9 @@ workflow QTLDISCOVERY {
 
     GATK4_HAPLOTYPECALLER(
       meta_inp_inpindex,
-      fasta.map { meta, fasta -> fasta }.first(),
-      fai.map { meta, fai -> fai }.first(),
-      dict.map { meta, dict -> dict }.first(),
+      fasta.map { meta, fasta -> fasta },
+      fai.map { meta, fai -> fai },
+      dict.map { meta, dict -> dict },
       [],
       []
     )
@@ -249,25 +250,35 @@ workflow QTLDISCOVERY {
        fai,
        dict
      )
+     //GATK4_VARIANTFILTRATION.out.vcf.view()
      ch_versions = ch_versions.mix(GATK4_VARIANTFILTRATION.out.versions.first())
 
     //
     // MODULE: GATK4_COMBINEGVCFS
     //
-/*
+    GATK4_VARIANTFILTRATION.out.vcf
+       .mix(GATK4_VARIANTFILTRATION.out.tbi)
+       .groupTuple()
+       .map  { meta, files -> [meta, files[0], files[1]] }
+       .set  { meta_vcf_combine }
+    fasta.map {meta, file -> file}.set {fasta_file}
+    fai.map {meta, file -> file}.set {fai_file}
+    dict.map {meta, file -> file}.set {dict_file}
+
      GATK4_COMBINEGVCFS (
        meta_vcf_combine,
-       fasta.map { meta, fasta -> fasta }.first(),
-       fai.map { meta, fai -> fai }.first(),
-       dict.map { meta, dict -> dict }.first()
+       fasta_file,
+       fai_file,
+       dict_file
      )
-*/
+
     //
     // MODULE: GATK4_VARIANTSTOTABLE
     //
+    GATK4_COMBINEGVCFS.out.combined_gvcf.set { gvcf }
 
     GATK4_VARIANTSTOTABLE(
-      grouped_meta_vcf,
+      gvcf,
       fasta.map { meta, fasta -> fasta }.first(),
       fai.map { meta, fai -> fai }.first(),
       dict.map { meta, dict -> dict }.first()
